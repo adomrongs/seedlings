@@ -1,6 +1,7 @@
-# GS control: genomic selection from S2 to S3, and a crossing block built by
-# truncation selection on GEBV over the whole genotyped pool (S2 + S3 + S4).
-# No optimisation of parental contributions.
+# COMA con la candidate pool formada por el crossing block mas S3 y S4: todos los clones evaluados en campo,
+# sin seedlings.
+# Todo lo demas (burnin, training population, GS de S2 a S3, dF) es identico
+# entre los cinco escenarios COMA.
 
 rm(list = ls())
 library(AlphaSimR)
@@ -9,14 +10,16 @@ library(data.table)
 library(AGHmatrix)
 library(lme4breeding)
 library(polyBreedR)
+library(COMA)
+library(SimPlus)
 source('code/processes/0_params.R')
 
 # ----------- Replicate and outputs -----------
 rep <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "1"))
 load(paste0('outputs/burnin/rdata/burnin_', rep, '.Rdata'))
 source('code/processes/0_params.R')
-scenario <- 'GS_trunc'
-poolStages <- c('parents', 'S2', 'S3', 'S4')
+scenario <- 'COMA_S3S4'
+poolStages <- c('parents', 'S3', 'S4')
 
 csv <- paste0('outputs/', scenario, '/csv/', scenario, '_', rep, '.csv')
 if (!dir.exists(dirname(csv))) dir.create(dirname(csv), recursive = TRUE)
@@ -31,7 +34,8 @@ for (year in (nBurnin + 1):(nBurnin + nFuture)) {
   i <- year - nBurnin
 
   source('code/processes/7_PredictGEBV.R')
-  source('code/processes/8_SelectParentsTrunc.R')
+  source('code/processes/9_COMAFiles.R')
+  source('code/processes/10_RunOMA.R')
   source('code/processes/11_AdvanceYearGS.R')
   source('code/processes/5_StoreRecords.R')
   source('code/processes/6_Inbreeding.R')

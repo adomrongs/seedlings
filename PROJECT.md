@@ -66,14 +66,32 @@ Un efecto de año común a todas las etapas se introduce con el argumento `p` de
 | `burnin` | fenotípica | 10 mejores S4 por fenotipo | `code/scenarios/burnin.R` |
 | `PS` | fenotípica | 10 mejores S4 por fenotipo | `code/scenarios/PS.R` |
 | `GS_trunc` | **GEBV** | 40 mejores GEBV de S2+S3+S4 | `code/scenarios/GS_trunc.R` |
-| `GS_COMA_0.5` | **GEBV** | COMA `oma()` sobre S2+S3+S4, dF = 0.5 % | `code/scenarios/GS_COMA_0.5.R` |
+| `COMA_S4` | **GEBV** | COMA `oma()`, dF = 1 %, pool = padres + S4 | `code/scenarios/COMA_S4.R` |
+| `COMA_S3S4` | **GEBV** | COMA `oma()`, dF = 1 %, pool = padres + S3 + S4 | `code/scenarios/COMA_S3S4.R` |
+| `COMA_S2S3S4` | **GEBV** | COMA `oma()`, dF = 1 %, pool = padres + S2 + S3 + S4 | `code/scenarios/COMA_S2S3S4.R` |
+| `COMA_S2` | **GEBV** | COMA `oma()`, dF = 1 %, pool = padres + S2 | `code/scenarios/COMA_S2.R` |
+| `COMA_onlyS2` | **GEBV** | COMA `oma()`, dF = 1 %, pool = S2, **sin padres** | `code/scenarios/COMA_onlyS2.R` |
+
+Los cinco escenarios COMA son idénticos salvo en **una sola cosa: la
+composición de la candidate pool**, declarada en `poolStages` al principio de
+cada script. Mismo burnin, misma training population, misma GS de S2 a S3,
+mismo dF. El prefijo `GS_` se eliminó de los nombres porque todos los
+escenarios futuros usan selección genómica; decirlo en el nombre era redundante.
+
+`COMA_S4` y `COMA_onlyS2` son los **controles opuestos** que pide el PDF: pool
+solo de individuos con fenotipo replicado frente a pool solo de seedlings.
+`COMA_S2S3S4` es el escenario realista donde ambos tipos compiten.
 
 `PS` no estaba en el encargo original: es la continuación del burnin durante los
-mismos 30 años y sirve de línea base para medir la ganancia de los dos
-escenarios GS. Si no se quiere, basta con borrar el script y su `.slurm`.
+mismos 30 años y sirve de línea base para medir la ganancia de los escenarios
+GS. Si no se quiere, basta con borrar el script y su `.slurm`.
 
-En los tres escenarios futuros **solo S2→S3 es genómica**. S1→S2 y S3→S4 siguen
-siendo fenotípicas, tal como se especificó.
+En **todos** los escenarios futuros solo S2→S3 es genómica. S1→S2 y S3→S4
+siguen siendo fenotípicas, tal como se especificó. Ojo con una distinción que
+`7_PredictGEBV.R` hace explícita: el **conjunto predicho** es siempre padres +
+S2 + S3 + S4, porque la selección S2→S3 necesita GEBVs en S2 aunque S2 no sea
+candidato a cruzar; la **candidate pool** es el subconjunto que declara
+`poolStages` y es lo único que ve COMA.
 
 ---
 
@@ -85,7 +103,7 @@ siendo fenotípicas, tal como se especificó.
 | Genoma | 10 crom., 1.43 M, 8e8 pb, µ = 2e-9, 1500 seg. sites/crom. | Covarrubias et al. 2026, sin líneas puras |
 | Marcadores | 100 QTL + 1000 SNP por cromosoma | 1000 QTL y 10 000 SNP en total |
 | Training population | **S3 + S4**, ventana de 8 años | 220/año × 8 = 1760 registros, por encima del mínimo de 1500 |
-| Candidate population | **Padres del plan anterior + S2 + S3 + S4**, sin filtrar | 1220 de las etapas más los padres que no hayan avanzado. Ver §6 |
+| Candidate population | Declarada por escenario en `poolStages`, sin filtrar | Es la única cosa que distingue los cinco escenarios COMA. Ver §3 y §6 |
 | Modelo de predicción | GBLUP: `AGHmatrix::Gmatrix` (VanRaden) + `lme4breeding::lmebreed` | `pheno ~ year + stage + (1 \| gid)` |
 | Efectos de marcador | Back-solve de los GEBVs | Necesarios para predecir candidatos fuera del modelo y para alimentar COMA |
 | Genotipado | S2, S3 y S4 cada año, solo en escenarios futuros | El burnin no genotipa. Los padres reciclados ya se genotiparon en su día; el crossing block heredado del burnin se genotipa una vez, en el año 21 |
@@ -172,6 +190,59 @@ Si crece de forma sostenida porque COMA retiene muchos padres, el coste sube
 con el cuadrado: es la primera señal que hay que mirar si los trabajos empiezan
 a no caber en el tiempo pedido.
 
+### Tamaño de pool por escenario
+
+Los cruces escalan con el cuadrado de la pool, así que los cinco escenarios
+COMA no cuestan ni de lejos lo mismo:
+
+| Escenario | Pool | Candidatos aprox. | Cruces |
+|---|---|---|---|
+| `COMA_S4` | padres + S4 | ~60 | 1 770 |
+| `COMA_S3S4` | padres + S3 + S4 | ~260 | 33 670 |
+| `COMA_onlyS2` | S2 (sin padres) | ~1000 | 499 500 |
+| `COMA_S2` | padres + S2 | ~1040 | 540 280 |
+| `COMA_S2S3S4` | padres + S2 + S3 + S4 | ~1260 | 793 170 |
+
+Las cifras son aproximadas porque el término de padres varía cada año: depende
+de cuántos retenga el plan anterior y de cuántos hayan avanzado de etapa. La
+columna `nCandidates` del CSV registra el valor real.
+
+`COMA_S4` es un caso extremo que merece vigilancia: con ~60 candidatos, la
+restricción de dF = 1 % puede ser **infactible** y `dF.adapt` la relajará. Eso
+no es un fallo, es el resultado: una pool formada solo por clones élite tiene
+muy poca diversidad donde elegir. Conviene comparar `dF1` con `edF1` en ese
+escenario antes de interpretar su ganancia.
+
+### Benchmark (medido, no estimado)
+
+Primer año futuro con la pool completa (`COMA_S2S3S4`), ejecutado en local:
+**`COMA::oma()` tardó 5.30 minutos.** De ahí:
+
+- oma() sola, 30 años: 159 min = **2.6 h por repetición**.
+- Total por repetición, según qué fracción del año sea oma(): 4.1 h si es el
+  65 %, 5.3 h si es el 50 %, 7.6 h si es el 35 %.
+
+Los `.slurm` se redimensionaron con este dato: `COMA_S2S3S4` pasó de 48 h y
+120 G (puras conjeturas) a **16 h y 32 G**, lo que deja entre 2 y 4 veces de
+margen sobre el rango anterior. `GS_trunc` hace un subconjunto estricto de ese
+trabajo (sin `read_data`, sin `oma`, sin `sim_mate`), así que se bajó a 8 h y
+25 G por coherencia.
+
+**Dos avisos sobre este benchmark:**
+
+1. La columna `time` cronometra **solo `COMA::oma()`**. `COMA::read_data()` con
+   `matings = 'all'` calcula el mérito de ~793 000 cruces y no está incluido,
+   igual que el GBLUP, `A_mat` y `sim_mate`. El tiempo real por año es mayor que
+   5.30 min, y no está medido.
+2. El dato es del **año 21**, que es el más barato: el pedigrí es el más pequeño
+   de toda la simulación y la pool la más chica. `A_mat` trabaja sobre un
+   pedigrí que crece ~1260 individuos al año, así que los años finales serán
+   más lentos. Si un trabajo agota el tiempo, será al final y se pierde la
+   repetición entera: no hay checkpoint intermedio.
+
+Antes de lanzar el array de 30, merece la pena dejar correr **una repetición
+completa** y mirar cuánto tarda de verdad.
+
 **Antes de lanzar el array completo, ejecutar una sola repetición un solo año y
 mirar la columna `time`.** Si un año tarda más de ~30 minutos, hay que decidir
 entre: prefiltrar S2 por GEBV, bajar `nS2` otra vez, o aceptar el coste. El
@@ -223,7 +294,7 @@ No son funciones: son bloques de acción que los escenarios encadenan con
 ```
 burnin / PS         3_UpdateParents -> 4_AdvanceYear -> 5_StoreRecords -> 6_Inbreeding
 GS_trunc            7_PredictGEBV -> 8_SelectParentsTrunc -> 11_AdvanceYearGS -> 5_StoreRecords -> 6_Inbreeding
-GS_COMA_0.5         7_PredictGEBV -> 9_COMAFiles -> 10_RunOMA -> 11_AdvanceYearGS -> 5_StoreRecords -> 6_Inbreeding
+COMA_*              7_PredictGEBV -> 9_COMAFiles -> 10_RunOMA -> 11_AdvanceYearGS -> 5_StoreRecords -> 6_Inbreeding
 ```
 
 `6_Inbreeding` va siempre después de `5_StoreRecords`, porque es este el que
@@ -237,7 +308,11 @@ Siempre desde la raíz del proyecto (`seedlings.Rproj` abierto o `setwd()`).
 sbatch code/slurm/burnin.slurm          # primero, genera los .Rdata de partida
 sbatch code/slurm/PS.slurm
 sbatch code/slurm/GS_trunc.slurm
-sbatch code/slurm/GS_COMA_0.5.slurm
+sbatch code/slurm/COMA_S4.slurm
+sbatch code/slurm/COMA_S3S4.slurm
+sbatch code/slurm/COMA_S2S3S4.slurm
+sbatch code/slurm/COMA_S2.slurm
+sbatch code/slurm/COMA_onlyS2.slurm
 ```
 
 En local, sin SLURM, `rep` cae a 1:

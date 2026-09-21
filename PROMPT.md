@@ -42,10 +42,14 @@ Una etapa por año. Burnin de 20 años totalmente fenotípico; futuro de 30 año
 genómica**; el resto sigue siendo fenotípica.
 
 Training population: registros de S3 y S4 de los últimos 8 años (~1760).
-Candidate population: todo lo genotipado y disponible para cruzar, es decir
-S2 + S3 + S4 (1220) **más los padres del plan de cruzamientos del año anterior**
-que no hayan avanzado de etapa. Sin ellos no se podría reutilizar un padre entre
-años y desaparecería el solapamiento de generaciones.
+Candidate population: la declara cada escenario en `poolStages` y es lo único
+que los distingue. `parents` son los padres del plan del año anterior, que
+siguen disponibles para cruzar y aportan el solapamiento de generaciones.
+
+No confundir con el **conjunto predicho**: `7_PredictGEBV.R` calcula GEBVs para
+padres + S2 + S3 + S4 siempre, porque la selección S2→S3 es genómica en todos
+los escenarios aunque S2 no sea candidato a cruzar. La candidate pool es solo
+lo que ve COMA.
 
 ## Reglas del código
 
@@ -107,9 +111,10 @@ años y desaparecería el solapamiento de generaciones.
 
 ## Lo que NO debes hacer
 
-- No lanzar el array de 30 repeticiones sin haber cronometrado antes un año de
-  `COMA::oma()` con la candidate pool completa (743 590 cruces solo con las
-  etapas, y más con los padres reciclados dentro: ver la tabla de PROJECT.md §6).
+- No lanzar el array de 30 repeticiones sin haber dejado correr antes una
+  repetición completa. Hay un benchmark de un solo año (`oma()` = 5.30 min con
+  la pool de `COMA_S2S3S4`), pero es del año 21, el más barato de los 30: ver
+  PROJECT.md §6.
 - No subir `nS2` por encima de 1000 sin preguntar: está fijado ahí porque con
   2000 los cruces se multiplican por 3.3 y COMA deja de ser ejecutable.
 - No cambiar parámetros de `0_params.R` sin decirlo de forma explícita.
@@ -119,12 +124,16 @@ años y desaparecería el solapamiento de generaciones.
 
 ## Estado actual
 
-Implementado: `burnin`, `PS`, `GS_trunc`, `GS_COMA_0.5`.
+Implementado: `burnin`, `PS`, `GS_trunc` y cinco escenarios COMA a dF = 1 %
+que difieren **solo en la candidate pool**, declarada en `poolStages`:
+`COMA_S4` (padres+S4), `COMA_S3S4`, `COMA_S2S3S4`, `COMA_S2` (padres+S2) y
+`COMA_onlyS2` (S2 sin padres).
 
 Pendiente, en orden de prioridad:
 
-1. Cronometrar `COMA::oma()` con la pool completa y decidir si hace falta filtrar.
-2. Rellenar el remote de `SimPlus` en `code/setup_renv.R`.
+1. Rellenar el remote de `SimPlus` en `code/setup_renv.R`.
+2. Correr una repetición completa de `COMA_S2S3S4` y ajustar los `.slurm` con el
+   tiempo real (ahora están extrapolados de un solo año).
 3. Script de agregación de los CSV y figuras.
 4. Escenario con mating plan forzado a más seedlings (pregunta 2 del PDF).
 5. Escenario con una fracción de seedlings fenotipados dentro de la training

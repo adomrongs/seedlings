@@ -4,14 +4,12 @@
 # Marker effects are back-solved from the training GEBVs so that (i) candidates
 # that are not in the model can be predicted and (ii) COMA can be fed directly.
 
-# The candidate pool is the current S2, S3 and S4 plus the parents of last
-# year's mating plan. Those parents are still available for crossing, and most
-# of them are no longer in any current stage: a parent taken from S2 last year
-# is only in S3 now if it advanced, and is otherwise gone. Leaving them out
-# would forbid reusing a parent across years and would remove the overlapping
-# generations that the inbreeding constraint has to arbitrate.
-candidatePop <- c(parents, S2, S3, S4)
-candidatePop <- candidatePop[!duplicated(candidatePop@id)]
+# Everything genotyped gets a GEBV, whatever the scenario. This is wider than
+# the mating candidate pool on purpose: the S2 -> S3 selection is genomic in
+# every future scenario, so S2 has to be predicted even in COMA_S4 and
+# COMA_S3S4, where S2 is not a candidate for crossing.
+allGenotyped <- c(parents, S2, S3, S4)
+allGenotyped <- allGenotyped[!duplicated(allGenotyped@id)]
 
 # ----------- Marker matrix of the training population -----------
 Mtrain <- pullSnpGeno(tpPop)
@@ -51,17 +49,36 @@ ameff <- crossprod(
 )
 ameff <- as.vector(ameff)
 
-# ----------- Predict the candidates -----------
-Mcand <- pullSnpGeno(candidatePop)[, colnames(Mtrain), drop = FALSE]
-Wcand <- sweep(Mcand, 2, ploidy * freq)
-candidatePop@ebv <- matrix(Wcand %*% ameff, ncol = 1)
+# ----------- Predict everything genotyped -----------
+Mall <- pullSnpGeno(allGenotyped)[, colnames(Mtrain), drop = FALSE]
+Wall <- sweep(Mall, 2, ploidy * freq)
+allGenotyped@ebv <- matrix(Wall %*% ameff, ncol = 1)
 
-S2 <- setEBV(S2, candidatePop)
-S3 <- setEBV(S3, candidatePop)
-S4 <- setEBV(S4, candidatePop)
+parents <- setEBV(parents, allGenotyped)
+S2 <- setEBV(S2, allGenotyped)
+S3 <- setEBV(S3, allGenotyped)
+S4 <- setEBV(S4, allGenotyped)
+
+# ----------- Mating candidate pool -----------
+# Each scenario declares it in poolStages. 'parents' is the crossing block of
+# last year's mating plan: still available for crossing and, in most years, no
+# longer present in any current stage, so it is what keeps generations
+# overlapping. COMA_onlyS2 leaves it out on purpose, as the seedlings-only
+# control. Built after setEBV so the pool carries the GEBVs.
+stagePops <- list(parents = parents, S2 = S2, S3 = S3, S4 = S4)
+candidatePop <- do.call(c, unname(stagePops[poolStages]))
+candidatePop <- candidatePop[!duplicated(candidatePop@id)]
+
+Mcand <- pullSnpGeno(candidatePop)[, colnames(Mtrain), drop = FALSE]
 
 nCandidates <- candidatePop@nInd
 accuracy_S2 <- cor(S2@gv, S2@ebv)
 accuracy_cand <- cor(candidatePop@gv, candidatePop@ebv)
 
-cat("    GEBVs ready | accuracy in S2:", round(accuracy_S2, 3), "\n")
+cat(
+  "    GEBVs ready | accuracy in S2:",
+  round(accuracy_S2, 3),
+  "| candidates:",
+  nCandidates,
+  "\n"
+)

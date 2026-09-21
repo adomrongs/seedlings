@@ -1,6 +1,7 @@
-# GS + COMA: genomic selection from S2 to S3, and a crossing block built by
-# optimal mate allocation over the whole genotyped pool (S2 + S3 + S4) at a
-# target inbreeding rate of 0.5 % per year.
+# COMA con la candidate pool formada por el crossing block mas las tres etapas genotipadas. Es el escenario
+# realista: la pool mezcla individuos con y sin registros en la training population.
+# Todo lo demas (burnin, training population, GS de S2 a S3, dF) es identico
+# entre los cinco escenarios COMA.
 
 rm(list = ls())
 library(AlphaSimR)
@@ -17,8 +18,8 @@ source('code/processes/0_params.R')
 rep <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "1"))
 load(paste0('outputs/burnin/rdata/burnin_', rep, '.Rdata'))
 source('code/processes/0_params.R')
-dF <- 0.005
-scenario <- paste0('GS_COMA_', 100 * dF)
+scenario <- 'COMA_S2S3S4'
+poolStages <- c('parents', 'S2', 'S3', 'S4')
 
 csv <- paste0('outputs/', scenario, '/csv/', scenario, '_', rep, '.csv')
 if (!dir.exists(dirname(csv))) dir.create(dirname(csv), recursive = TRUE)

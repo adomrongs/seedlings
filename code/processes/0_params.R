@@ -36,7 +36,7 @@ h2S3 <- 0.4
 h2S4 <- 0.8
 
 # ----------- COMA parameters -----------
-dF <- 0.005 # target inbreeding rate per year
+dF <- 0.01 # target inbreeding rate per year
 totalProgeny <- nCrosses * nProgeny
 minProgeny <- 200
 

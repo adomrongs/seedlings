@@ -1,0 +1,27 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rout
+
+# renv: the lockfile is tracked, the library is not
+renv/library/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/sandbox/
+renv/staging/
+
+# Simulation outputs
+outputs/*
+!outputs/.gitkeep
+
+# SLURM logs
+*.log
+*.err
+
+# OS
+.DS_Store
+Thumbs.db

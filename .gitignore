@@ -14,10 +14,6 @@ renv/python/
 renv/sandbox/
 renv/staging/
 
-# Simulation outputs
-outputs/*
-!outputs/.gitkeep
-
 # SLURM logs
 *.log
 *.err
@@ -25,3 +21,10 @@ outputs/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Simulation outputs: only the per-scenario result CSVs are tracked. Everything else stays local: pedigrees (ped_*.csv, ped_cand_*.csv), COMA inputs (geno_*.csv.gz, k_*.csv.gz) and burnin images (*.Rdata).
+outputs/** 
+!outputs/.gitkeep 
+!outputs/*/ 
+!outputs/*/csv/
+!outputs/*/csv/*.csv
